@@ -108,6 +108,7 @@ class RecipeSummaryViewModel @Inject constructor(
                 fetchRecipeTypeListUseCase(EmptyRequest)
                 when (recipeState) {
                     RecipeState.CREATE,
+                    RecipeState.LOCAL,
                     RecipeState.UPLOAD,
                     RecipeState.DOWNLOAD -> {
                         getMyRecipeFlowUseCase(GetMyRecipeRequest(recipeId))
@@ -142,7 +143,7 @@ class RecipeSummaryViewModel @Inject constructor(
     private fun updateFabState(recipe: Recipe) {
         val oldRecipeSummaryType = _liveFabState.value?.first
         val newRecipeSummaryType = when {
-            recipe.authorId == userId && (recipe.state == RecipeState.CREATE || recipe.state == RecipeState.UPLOAD) -> {
+            recipe.authorId == userId && (recipe.state == RecipeState.LOCAL || recipe.state == RecipeState.UPLOAD) -> {
                 RecipeSummaryType.MY_SAVE_RECIPE
             }
             recipe.state == RecipeState.DOWNLOAD -> {
@@ -200,9 +201,10 @@ class RecipeSummaryViewModel @Inject constructor(
 
             liveRecipe.value?.let { recipe ->
                 val deleteResult = when (recipeState) {
-                    RecipeState.CREATE,
+                    RecipeState.LOCAL,
                     RecipeState.UPLOAD,
-                    RecipeState.DOWNLOAD -> {
+                    RecipeState.DOWNLOAD,
+                    RecipeState.CREATE -> {
                         deleteMyRecipeUseCase(DeleteMyRecipeRequest(recipe))
                     }
                     RecipeState.NETWORK -> {
