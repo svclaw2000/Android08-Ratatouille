@@ -79,7 +79,7 @@ class RecipeDetailViewModel @Inject constructor(
             when (state) {
                 RecipeState.NETWORK ->
                     fetchOthersRecipeUseCase(FetchOthersRecipeRequest(recipeId))
-                RecipeState.CREATE, RecipeState.DOWNLOAD, RecipeState.UPLOAD ->
+                RecipeState.LOCAL, RecipeState.DOWNLOAD, RecipeState.UPLOAD, RecipeState.CREATE ->
                     getMyRecipeUseCase(GetMyRecipeRequest(recipeId))
             }.onSuccess { recipe ->
                 _liveStepList.value = recipe.stepList
