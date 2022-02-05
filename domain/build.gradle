@@ -19,6 +19,7 @@ dependencies {
     // Mockito framework
     testImplementation "org.mockito:mockito-inline:$mockito_inline_version"
     testImplementation "org.mockito:mockito-core:$mockito_version"
+    testImplementation "org.mockito.kotlin:mockito-kotlin:$mockito_version"
     //coroutines
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:$coroutines_version"
 }
