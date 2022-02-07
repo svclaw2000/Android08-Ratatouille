@@ -56,6 +56,11 @@ abstract class ResultUseCaseModule {
     ): ResultUseCase<FetchOthersSearchRecipeListRequest, List<Recipe>>
 
     @Binds
+    internal abstract fun bindSaveRecipeUseCase(
+        saveRecipeUseCase: SaveRecipeUseCase
+    ): ResultUseCase<SaveRecipeRequest, Unit>
+
+    @Binds
     internal abstract fun bindSaveMyRecipeUseCase(
         saveMyRecipeUseCase: SaveMyRecipeUseCase
     ): ResultUseCase<SaveMyRecipeRequest, Unit>
