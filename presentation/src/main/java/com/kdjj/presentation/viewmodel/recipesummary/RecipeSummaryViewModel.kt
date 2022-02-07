@@ -26,7 +26,7 @@ class RecipeSummaryViewModel @Inject constructor(
     private val deleteMyRecipeUseCase: ResultUseCase<DeleteMyRecipeRequest, Unit>,
     private val deleteUploadedRecipeUseCase: ResultUseCase<DeleteUploadedRecipeRequest, Unit>,
     private val fetchOthersRecipeUseCase: ResultUseCase<FetchOthersRecipeRequest, Recipe>,
-    private val saveMyRecipeUseCase: ResultUseCase<SaveMyRecipeRequest, Unit>,
+    private val saveRecipeUseCase: ResultUseCase<SaveRecipeRequest, Unit>,
     private val uploadRecipeUseCase: ResultUseCase<UploadRecipeRequest, Unit>,
     private val increaseViewCountUseCase: ResultUseCase<IncreaseOthersRecipeViewCountRequest, Unit>,
     private val fetchRecipeTypeListUseCase: ResultUseCase<EmptyRequest, List<RecipeType>>,
@@ -222,13 +222,7 @@ class RecipeSummaryViewModel @Inject constructor(
         _liveLoading.value = true
         viewModelScope.launch {
             liveRecipe.value?.let { recipe ->
-                val newRecipeId = idGenerator.generateId()
-                val newRecipe = recipe.copy(
-                    recipeId = newRecipeId,
-                    state = RecipeState.DOWNLOAD,
-                    stepList = recipe.stepList.map { it.copy(stepId = idGenerator.generateId()) }
-                )
-                val saveResult = saveMyRecipeUseCase(SaveMyRecipeRequest(newRecipe))
+                val saveResult = saveRecipeUseCase(SaveRecipeRequest(recipe))
 
                 _eventRecipeSummary.value =
                     Event(RecipeSummaryEvent.SaveFinish(saveResult.isSuccess))
@@ -241,14 +235,9 @@ class RecipeSummaryViewModel @Inject constructor(
         _liveLoading.value = true
         viewModelScope.launch {
             liveRecipe.value?.let { recipe ->
-                val newRecipeId = idGenerator.generateId()
-                val newRecipe = recipe.copy(
-                    recipeId = newRecipeId,
-                    state = RecipeState.DOWNLOAD,
-                    isFavorite = true,
-                    stepList = recipe.stepList.map { it.copy(stepId = idGenerator.generateId()) }
-                )
-                val saveResult = saveMyRecipeUseCase(SaveMyRecipeRequest(newRecipe))
+                val saveResult = saveRecipeUseCase(SaveRecipeRequest(recipe.copy(
+                    isFavorite = true
+                )))
 
                 _eventRecipeSummary.value =
                     Event(RecipeSummaryEvent.SaveFinish(saveResult.isSuccess))
