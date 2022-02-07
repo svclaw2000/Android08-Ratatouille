@@ -61,11 +61,6 @@ abstract class ResultUseCaseModule {
     ): ResultUseCase<SaveRecipeRequest, Unit>
 
     @Binds
-    internal abstract fun bindSaveMyRecipeUseCase(
-        saveMyRecipeUseCase: SaveMyRecipeUseCase
-    ): ResultUseCase<SaveMyRecipeRequest, Unit>
-
-    @Binds
     internal abstract fun bindUpdateMyRecipeFavoriteUseCase(
         updateMyRecipeFavoriteUseCase: UpdateMyRecipeFavoriteUseCase
     ): ResultUseCase<UpdateMyRecipeFavoriteRequest, Boolean>
@@ -94,11 +89,6 @@ abstract class ResultUseCaseModule {
     internal abstract fun bindFetchOthersRecipeUseCase(
         fetchOthersRecipeUseCase: FetchOthersRecipeUseCase
     ): ResultUseCase<FetchOthersRecipeRequest, Recipe>
-
-    @Binds
-    internal abstract fun bindUpdateMyRecipeUseCase(
-        updateMyRecipeUseCase: UpdateMyRecipeUseCase
-    ): ResultUseCase<UpdateMyRecipeRequest, Unit>
 
     @Binds
     internal abstract fun bindFetchRecipeTempUseCase(

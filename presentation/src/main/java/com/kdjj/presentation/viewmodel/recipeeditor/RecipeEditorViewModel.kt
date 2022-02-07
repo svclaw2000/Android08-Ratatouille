@@ -25,13 +25,12 @@ import javax.inject.Inject
 internal class RecipeEditorViewModel @Inject constructor(
     private val recipeValidator: RecipeValidator,
     private val recipeStepValidator: RecipeStepValidator,
-    private val saveRecipeUseCase: ResultUseCase<SaveMyRecipeRequest, Unit>,
+    private val saveRecipeUseCase: ResultUseCase<SaveRecipeRequest, Unit>,
     private val fetchRecipeTypesUseCase: ResultUseCase<EmptyRequest, List<RecipeType>>,
     private val getMyRecipeUseCase: ResultUseCase<GetMyRecipeRequest, Recipe>,
     private val fetchRecipeTempUseCase: ResultUseCase<FetchRecipeTempRequest, Recipe?>,
     private val saveRecipeTempUseCase: ResultUseCase<SaveRecipeTempRequest, Unit>,
     private val deleteRecipeTempUseCase: ResultUseCase<DeleteRecipeTempRequest, Unit>,
-    private val updateMyRecipeUseCase: ResultUseCase<UpdateMyRecipeRequest, Unit>,
     private val idGenerator: IdGenerator,
     private val workManager: WorkManager
 ) : ViewModel() {
@@ -381,19 +380,18 @@ internal class RecipeEditorViewModel @Inject constructor(
                     _liveStepModelList.value ?: listOf(),
                     liveRecipeTypes.value ?: listOf()
                 )
-                if (_liveEditing.value == true) {
-                    updateMyRecipeUseCase(UpdateMyRecipeRequest(recipe))
-                } else {
-                    saveRecipeUseCase(SaveMyRecipeRequest(recipe))
-                }.onSuccess {
-                    if (recipe.state == RecipeState.UPLOAD) registerUploadTask(recipe.recipeId)
-                    _eventRecipeEditor.value =
-                        Event(RecipeEditorEvent.SaveResult(true))
-                    deleteTemp(false)
-                }.onFailure {
-                    _eventRecipeEditor.value =
-                        Event(RecipeEditorEvent.SaveResult(false))
-                }
+
+                saveRecipeUseCase(SaveRecipeRequest(recipe))
+                    .onSuccess {
+                        if (recipe.state == RecipeState.UPLOAD) registerUploadTask(recipe.recipeId)
+                        _eventRecipeEditor.value =
+                            Event(RecipeEditorEvent.SaveResult(true))
+                        deleteTemp(false)
+                    }
+                    .onFailure {
+                        _eventRecipeEditor.value =
+                            Event(RecipeEditorEvent.SaveResult(false))
+                    }
                 _liveLoading.value = false
             }
         }
