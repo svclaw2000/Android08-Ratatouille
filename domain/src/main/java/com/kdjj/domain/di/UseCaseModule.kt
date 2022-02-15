@@ -2,6 +2,7 @@ package com.kdjj.domain.di
 
 import com.kdjj.domain.model.request.*
 import com.kdjj.domain.model.response.ValidateRecipeFlowResponse
+import com.kdjj.domain.model.response.ValidateRecipeResponse
 import com.kdjj.domain.model.response.ValidateRecipeStepFlowResponse
 import com.kdjj.domain.usecase.*
 import dagger.Binds
@@ -19,4 +20,9 @@ abstract class UseCaseModule {
     internal abstract fun bindValidateRecipeStepFlowUseCase(
         validateRecipeStepFlowUseCase: ValidateRecipeStepFlowUseCase
     ) : UseCase<ValidateRecipeStepFlowRequest, ValidateRecipeStepFlowResponse>
+
+    @Binds
+    internal abstract fun bindValidateRecipeUseCase(
+        validateRecipeUseCase: ValidateRecipeUseCase
+    ) : UseCase<ValidateRecipeRequest, ValidateRecipeResponse>
 }
