@@ -9,8 +9,8 @@
             type="com.kdjj.presentation.viewmodel.recipeeditor.RecipeEditorViewModel" />
 
         <variable
-            name="model"
-            type="com.kdjj.presentation.model.RecipeEditorItem.RecipeMetaModel" />
+            name="dto"
+            type="com.kdjj.presentation.model.RecipeEditorDto.RecipeMetaDto" />
 
         <import type="android.widget.ImageView" />
     </data>
@@ -27,9 +27,9 @@
             android:layout_marginTop="@dimen/editor_recipeImage_marginTop"
             android:background="@drawable/bg_editor_image"
             android:contentDescription="@string/recipeImage"
-            android:onClick="@{() -> editorViewModel.startSelectImage(model)}"
-            android:scaleType="@{model.liveRecipeImgPath.empty ? ImageView.ScaleType.CENTER : ImageView.ScaleType.CENTER_CROP }"
-            app:loadImage="@{model.liveRecipeImgPath}"
+            android:onClick="@{() -> editorViewModel.startSelectImage(dto)}"
+            android:scaleType="@{dto.imgPathFlow.empty ? ImageView.ScaleType.CENTER : ImageView.ScaleType.CENTER_CROP }"
+            app:loadImage="@{dto.imgPathFlow}"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
             tools:src="@drawable/ic_my_recipe_24dp" />
@@ -52,9 +52,9 @@
             android:layout_height="wrap_content"
             android:importantForAutofill="no"
             android:inputType="text"
-            android:text="@={model.liveTitle}"
+            android:text="@={dto.titleFlow}"
             android:onTextChanged="@{() -> editorViewModel.doEdit()}"
-            android:background="@{!model.liveTitleState &amp;&amp; editorViewModel.liveRegisterHasPressed ? @drawable/bg_editor_input_field_error : @drawable/bg_editor_input_field }"
+            android:background="@{!dto.titleValidFlow &amp;&amp; editorViewModel.liveRegisterHasPressed ? @drawable/bg_editor_input_field_error : @drawable/bg_editor_input_field }"
             app:layout_constraintBottom_toTopOf="@id/spinner_editor_recipeType"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toEndOf="@id/textView_editor_recipeTitle"
@@ -78,7 +78,7 @@
             android:layout_marginStart="@dimen/editor_inputField_marginStart"
             android:layout_marginEnd="@dimen/editor_inputField_marginEnd"
             android:background="@drawable/bg_editor_input_field"
-            android:selectedItemPosition="@={model.liveRecipeTypeInt}"
+            android:selectedItemPosition="@={dto.typeIntFlow}"
             android:onItemSelected="@{() -> editorViewModel.doEdit()}"
             app:layout_constraintBottom_toBottomOf="@id/imageView_editor_recipe"
             app:layout_constraintEnd_toEndOf="parent"
@@ -105,10 +105,10 @@
             android:layout_marginStart="0dp"
             android:layout_marginTop="@dimen/editor_stuffInput_marginTop"
             android:gravity="top"
-            android:background="@{!model.liveStuffState &amp;&amp; editorViewModel.liveRegisterHasPressed ? @drawable/bg_editor_input_field_error : @drawable/bg_editor_input_field }"
+            android:background="@{!dto.stuffValidFlow &amp;&amp; editorViewModel.liveRegisterHasPressed ? @drawable/bg_editor_input_field_error : @drawable/bg_editor_input_field }"
             android:importantForAutofill="no"
             android:inputType="textMultiLine"
-            android:text="@={model.liveStuff}"
+            android:text="@={dto.stuffFlow}"
             android:onTextChanged="@{() -> editorViewModel.doEdit()}"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="@id/textView_editor_recipeStuff"
