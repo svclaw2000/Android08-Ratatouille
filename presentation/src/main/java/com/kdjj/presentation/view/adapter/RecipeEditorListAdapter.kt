@@ -12,30 +12,30 @@ import com.kdjj.presentation.R
 import com.kdjj.presentation.databinding.ItemEditorAddStepBinding
 import com.kdjj.presentation.databinding.ItemEditorRecipeMetaBinding
 import com.kdjj.presentation.databinding.ItemEditorRecipeStepBinding
-import com.kdjj.presentation.model.RecipeEditorItem
+import com.kdjj.presentation.model.RecipeEditorDto
 import com.kdjj.presentation.viewmodel.recipeeditor.RecipeEditorViewModel
 
 internal class RecipeEditorListAdapter(private val viewModel: RecipeEditorViewModel) :
-    ListAdapter<RecipeEditorItem, RecyclerView.ViewHolder>(
-        object : DiffUtil.ItemCallback<RecipeEditorItem>() {
+    ListAdapter<RecipeEditorDto, RecyclerView.ViewHolder>(
+        object : DiffUtil.ItemCallback<RecipeEditorDto>() {
 
             override fun areItemsTheSame(
-                oldItem: RecipeEditorItem,
-                newItem: RecipeEditorItem
+                oldItem: RecipeEditorDto,
+                newItem: RecipeEditorDto
             ): Boolean = when {
-                oldItem is RecipeEditorItem.RecipeMetaModel &&
-                        newItem is RecipeEditorItem.RecipeMetaModel ->
+                oldItem is RecipeEditorDto.RecipeMetaDto &&
+                        newItem is RecipeEditorDto.RecipeMetaDto ->
                     oldItem.recipeId == newItem.recipeId
-                oldItem is RecipeEditorItem.RecipeStepModel &&
-                        newItem is RecipeEditorItem.RecipeStepModel ->
+                oldItem is RecipeEditorDto.RecipeStepDto &&
+                        newItem is RecipeEditorDto.RecipeStepDto ->
                     oldItem.hashCode() == newItem.hashCode()
-                oldItem is RecipeEditorItem.PlusButton && newItem is RecipeEditorItem.PlusButton -> true
+                oldItem is RecipeEditorDto.PlusButton && newItem is RecipeEditorDto.PlusButton -> true
                 else -> false
             }
 
             override fun areContentsTheSame(
-                oldItem: RecipeEditorItem,
-                newItem: RecipeEditorItem
+                oldItem: RecipeEditorDto,
+                newItem: RecipeEditorDto
             ): Boolean = oldItem == newItem
         }
     ) {
@@ -58,8 +58,8 @@ internal class RecipeEditorListAdapter(private val viewModel: RecipeEditorViewMo
             binding.editorViewModel = viewModel
         }
 
-        fun bind(item: RecipeEditorItem.RecipeMetaModel) {
-            binding.model = item
+        fun bind(item: RecipeEditorDto.RecipeMetaDto) {
+            binding.dto = item
             binding.executePendingBindings()
         }
 
@@ -70,7 +70,7 @@ internal class RecipeEditorListAdapter(private val viewModel: RecipeEditorViewMo
 
     class RecipeStepViewHolder(
         private val binding: ItemEditorRecipeStepBinding,
-        private val viewModel: RecipeEditorViewModel
+        viewModel: RecipeEditorViewModel
     ) : RecyclerView.ViewHolder(binding.root) {
 
         init {
@@ -83,8 +83,8 @@ internal class RecipeEditorListAdapter(private val viewModel: RecipeEditorViewMo
             binding.editorViewModel = viewModel
         }
 
-        fun bind(item: RecipeEditorItem.RecipeStepModel) {
-            binding.model = item
+        fun bind(item: RecipeEditorDto.RecipeStepDto) {
+            binding.dto = item
             binding.executePendingBindings()
         }
 
@@ -95,7 +95,7 @@ internal class RecipeEditorListAdapter(private val viewModel: RecipeEditorViewMo
 
     class AddStepViewHolder(
         private val binding: ItemEditorAddStepBinding,
-        private val viewModel: RecipeEditorViewModel
+        viewModel: RecipeEditorViewModel
     ) : RecyclerView.ViewHolder(binding.root) {
 
         init {
@@ -109,9 +109,9 @@ internal class RecipeEditorListAdapter(private val viewModel: RecipeEditorViewMo
 
     override fun getItemViewType(position: Int): Int =
         when (getItem(position)) {
-            is RecipeEditorItem.RecipeMetaModel -> TYPE_META
-            is RecipeEditorItem.RecipeStepModel -> TYPE_STEP
-            RecipeEditorItem.PlusButton -> TYPE_ADD
+            is RecipeEditorDto.RecipeMetaDto -> TYPE_META
+            is RecipeEditorDto.RecipeStepDto -> TYPE_STEP
+            RecipeEditorDto.PlusButton -> TYPE_ADD
         }
 
     override fun onCreateViewHolder(
@@ -150,10 +150,11 @@ internal class RecipeEditorListAdapter(private val viewModel: RecipeEditorViewMo
     }
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
-        val item = getItem(position)
-        (item as? RecipeEditorItem.RecipeMetaModel)?.let { (holder as RecipeMetaViewHolder).bind(item) }
-            ?: (item as? RecipeEditorItem.RecipeStepModel)?.let { (holder as RecipeStepViewHolder).bind(item) }
-            ?: (item as? RecipeEditorItem.PlusButton)?.let { (holder as AddStepViewHolder).bind() }
+        when (val item = getItem(position)) {
+            is RecipeEditorDto.RecipeMetaDto -> (holder as RecipeMetaViewHolder).bind(item)
+            is RecipeEditorDto.RecipeStepDto -> (holder as RecipeStepViewHolder).bind(item)
+            RecipeEditorDto.PlusButton -> (holder as AddStepViewHolder).bind()
+        }
     }
 
     override fun onViewRecycled(holder: RecyclerView.ViewHolder) {
