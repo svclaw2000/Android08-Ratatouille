@@ -7,13 +7,16 @@ import com.kdjj.domain.model.RecipeState
 import com.kdjj.domain.model.RecipeStepType
 import com.kdjj.domain.model.RecipeType
 import com.kdjj.domain.model.request.*
+import com.kdjj.domain.model.response.ValidateRecipeFlowResponse
+import com.kdjj.domain.model.response.ValidateRecipeResponse
+import com.kdjj.domain.model.response.ValidateRecipeStepFlowResponse
 import com.kdjj.domain.usecase.ResultUseCase
+import com.kdjj.domain.usecase.UseCase
 import com.kdjj.presentation.common.*
 import com.kdjj.presentation.common.extensions.throttleFirst
-import com.kdjj.presentation.model.NEW_ID
-import com.kdjj.presentation.model.RecipeEditorItem
-import com.kdjj.presentation.model.toDomain
-import com.kdjj.presentation.model.toPresentation
+import com.kdjj.presentation.mapper.toDomain
+import com.kdjj.presentation.mapper.toEditorDto
+import com.kdjj.presentation.model.RecipeEditorDto
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -23,31 +26,32 @@ import javax.inject.Inject
 
 @HiltViewModel
 internal class RecipeEditorViewModel @Inject constructor(
-    private val recipeValidator: RecipeValidator,
-    private val recipeStepValidator: RecipeStepValidator,
+    private val validateRecipeUseCase: UseCase<ValidateRecipeRequest, ValidateRecipeResponse>,
+    private val validateRecipeFlowUseCase: UseCase<ValidateRecipeFlowRequest, ValidateRecipeFlowResponse>,
+    private val validateRecipeStepFlowUseCase: UseCase<ValidateRecipeStepFlowRequest, ValidateRecipeStepFlowResponse>,
     private val saveRecipeUseCase: ResultUseCase<SaveRecipeRequest, Unit>,
     private val fetchRecipeTypesUseCase: ResultUseCase<EmptyRequest, List<RecipeType>>,
     private val getMyRecipeUseCase: ResultUseCase<GetMyRecipeRequest, Recipe>,
     private val fetchRecipeTempUseCase: ResultUseCase<FetchRecipeTempRequest, Recipe?>,
     private val saveRecipeTempUseCase: ResultUseCase<SaveRecipeTempRequest, Unit>,
     private val deleteRecipeTempUseCase: ResultUseCase<DeleteRecipeTempRequest, Unit>,
-    private val idGenerator: IdGenerator,
-    private val workManager: WorkManager
+    private val workManager: WorkManager,
+    private val idGenerator: IdGenerator
 ) : ViewModel() {
 
-    private lateinit var recipeMetaModel: RecipeEditorItem.RecipeMetaModel
-    private val _liveStepModelList = MutableLiveData<List<RecipeEditorItem.RecipeStepModel>>()
+    private lateinit var recipeMetaDto: RecipeEditorDto.RecipeMetaDto
+    private val _liveStepDtoList = MutableLiveData<List<RecipeEditorDto.RecipeStepDto>>()
 
-    val liveRecipeItemList: LiveData<List<RecipeEditorItem>> = _liveStepModelList.map {
-        listOf(recipeMetaModel) + it + RecipeEditorItem.PlusButton
+    val liveRecipeDtoList: LiveData<List<RecipeEditorDto>> = _liveStepDtoList.map {
+        listOf(recipeMetaDto) + it + RecipeEditorDto.PlusButton
     }
 
     val stepTypes = RecipeStepType.values()
     private val _liveRecipeTypes = MutableLiveData<List<RecipeType>>()
     val liveRecipeTypes: LiveData<List<RecipeType>> get() = _liveRecipeTypes
 
-    private val _liveImgTarget = MutableLiveData<RecipeEditorItem?>()
-    val liveImgTarget: LiveData<RecipeEditorItem?> get() = _liveImgTarget
+    private val _liveImgTarget = MutableLiveData<RecipeEditorDto?>()
+    val liveImgTarget: LiveData<RecipeEditorDto?> get() = _liveImgTarget
 
     private val _liveRegisterHasPressed = MutableLiveData(false)
     val liveRegisterHasPressed: LiveData<Boolean> get() = _liveRegisterHasPressed
@@ -118,27 +122,27 @@ internal class RecipeEditorViewModel @Inject constructor(
     private fun isSameWithOld(): Boolean {
         oldRecipe?.let { oldRecipe ->
             if (
-                recipeMetaModel.liveTitle.value != oldRecipe.title ||
-                recipeMetaModel.liveStuff.value != oldRecipe.stuff ||
-                recipeMetaModel.liveRecipeImgPath.value != oldRecipe.imgPath ||
-                recipeMetaModel.liveRecipeTypeInt.value != liveRecipeTypes.value?.indexOf(oldRecipe.type)
+                recipeMetaDto.titleFlow.value != oldRecipe.title ||
+                recipeMetaDto.stuffFlow.value != oldRecipe.stuff ||
+                recipeMetaDto.imgPathFlow.value != oldRecipe.imgPath ||
+                recipeMetaDto.typeIntFlow.value != liveRecipeTypes.value?.indexOf(oldRecipe.type)
             ) {
                 return false
             }
 
-            if (_liveStepModelList.value?.size != oldRecipe.stepList.size) {
+            if (_liveStepDtoList.value?.size != oldRecipe.stepList.size) {
                 return false
             }
 
-            _liveStepModelList.value?.let { stepList ->
+            _liveStepDtoList.value?.let { stepList ->
                 stepList.forEachIndexed { idx, model ->
                     if (
-                        model.liveName.value != oldRecipe.stepList[idx].name ||
-                        model.liveDescription.value != oldRecipe.stepList[idx].description ||
-                        model.liveImgPath.value != oldRecipe.stepList[idx].imgPath ||
-                        model.liveTimerMin.value != oldRecipe.stepList[idx].seconds / 60 ||
-                        model.liveTimerSec.value != oldRecipe.stepList[idx].seconds % 60 ||
-                        model.liveTypeInt.value != oldRecipe.stepList[idx].type.ordinal
+                        model.nameFlow.value != oldRecipe.stepList[idx].name ||
+                        model.descriptionFlow.value != oldRecipe.stepList[idx].description ||
+                        model.imgPathFlow.value != oldRecipe.stepList[idx].imgPath ||
+                        model.minutesFlow.value != oldRecipe.stepList[idx].seconds / 60 ||
+                        model.secondsFlow.value != oldRecipe.stepList[idx].seconds % 60 ||
+                        model.typeIntFlow.value != oldRecipe.stepList[idx].type.ordinal
                     ) {
                         return false
                     }
@@ -147,22 +151,22 @@ internal class RecipeEditorViewModel @Inject constructor(
             return true
         } ?: run {
             if (
-                recipeMetaModel.liveTitle.value?.isEmpty() != true ||
-                recipeMetaModel.liveStuff.value?.isEmpty() != true ||
-                recipeMetaModel.liveRecipeImgPath.value?.isEmpty() != true ||
-                recipeMetaModel.liveRecipeTypeInt.value != 0
+                recipeMetaDto.titleFlow.value.isNotEmpty() ||
+                recipeMetaDto.stuffFlow.value.isNotEmpty() ||
+                recipeMetaDto.imgPathFlow.value.isNotEmpty() ||
+                recipeMetaDto.typeIntFlow.value != 0
             ) {
                 return false
             }
 
-            _liveStepModelList.value?.get(0)?.let { model ->
+            _liveStepDtoList.value?.get(0)?.let { model ->
                 if (
-                    model.liveName.value?.isEmpty() != true ||
-                    model.liveDescription.value?.isEmpty() != true ||
-                    model.liveImgPath.value?.isEmpty() != true ||
-                    model.liveTimerMin.value != 0 ||
-                    model.liveTimerSec.value != 0 ||
-                    model.liveTypeInt.value != 0
+                    model.nameFlow.value.isNotEmpty() ||
+                    model.descriptionFlow.value.isNotEmpty() ||
+                    model.imgPathFlow.value.isNotEmpty() ||
+                    model.minutesFlow.value != 0 ||
+                    model.secondsFlow.value != 0 ||
+                    model.typeIntFlow.value != 0
                 ) {
                     return false
                 }
@@ -173,14 +177,14 @@ internal class RecipeEditorViewModel @Inject constructor(
     }
 
     fun initializeWith(loadingRecipeId: String?) {
-        if (_liveStepModelList.value != null) return
+        if (_liveStepDtoList.value != null) return
 
         _liveLoading.value = true
         val recipeId = loadingRecipeId?.also {
             if (loadingRecipeId.isNotEmpty()) {
                 _liveEditing.value = true
             }
-        } ?: NEW_ID
+        } ?: ""
 
         viewModelScope.launch {
             fetchRecipeTypesUseCase(EmptyRequest)
@@ -190,7 +194,7 @@ internal class RecipeEditorViewModel @Inject constructor(
                         _liveLoading.value = false
                         tempRecipe = it
                         _eventRecipeEditor.value = Event(RecipeEditorEvent.TempDialog(recipeId))
-                    } ?: if (recipeId == NEW_ID) {
+                    } ?: if (recipeId.isEmpty()) {
                         createNewRecipe()
                     } else {
                         loadFromLocal(recipeId)
@@ -204,17 +208,18 @@ internal class RecipeEditorViewModel @Inject constructor(
     }
 
     fun showRecipeFromTemp() {
-        if (_liveStepModelList.value != null) return
+        if (_liveStepDtoList.value != null) return
 
         _liveLoading.value = true
         val (metaModel, stepList) =
-            tempRecipe.toPresentation(
-                recipeValidator,
-                _liveRecipeTypes.value ?: listOf(),
-                recipeStepValidator
+            tempRecipe.toEditorDto(
+                recipeTypeList = _liveRecipeTypes.value ?: listOf(),
+                validateRecipeUseCase = validateRecipeFlowUseCase,
+                validateStepUseCase = validateRecipeStepFlowUseCase,
+                scope = viewModelScope
             )
-        recipeMetaModel = metaModel
-        _liveStepModelList.value = stepList
+        recipeMetaDto = metaModel
+        _liveStepDtoList.value = stepList
 
         if (tempRecipe.recipeId.isNotEmpty()) {
             viewModelScope.launch {
@@ -227,8 +232,8 @@ internal class RecipeEditorViewModel @Inject constructor(
     }
 
     fun showRecipeFromLocal(recipeId: String) {
-        if (_liveStepModelList.value != null) return
-        if (recipeId == NEW_ID) {
+        if (_liveStepDtoList.value != null) return
+        if (recipeId.isEmpty()) {
             createNewRecipe()
         } else {
             viewModelScope.launch {
@@ -238,16 +243,13 @@ internal class RecipeEditorViewModel @Inject constructor(
     }
 
     private fun createNewRecipe() {
-        recipeMetaModel = RecipeEditorItem.RecipeMetaModel.create(
-            idGenerator, recipeValidator
-        )
-        _liveStepModelList.value = listOf(
-            RecipeEditorItem.RecipeStepModel.create(
-                recipeStepValidator
-            )
+        recipeMetaDto =
+            RecipeEditorDto.RecipeMetaDto.create(validateRecipeFlowUseCase, viewModelScope, idGenerator)
+        _liveStepDtoList.value = listOf(
+            RecipeEditorDto.RecipeStepDto.create(validateRecipeStepFlowUseCase, viewModelScope)
         )
         viewModelScope.launch {
-            deleteRecipeTempUseCase(DeleteRecipeTempRequest(NEW_ID))
+            deleteRecipeTempUseCase(DeleteRecipeTempRequest(""))
         }
         _liveLoading.value = false
     }
@@ -256,10 +258,15 @@ internal class RecipeEditorViewModel @Inject constructor(
         getMyRecipeUseCase(GetMyRecipeRequest(recipeId))
             .onSuccess { recipe ->
                 oldRecipe = recipe
-                val (metaModel, stepList) =
-                    recipe.toPresentation(recipeValidator, _liveRecipeTypes.value ?: listOf(), recipeStepValidator)
-                recipeMetaModel = metaModel
-                _liveStepModelList.value = stepList
+                val (metaDto, stepDtoList) =
+                    recipe.toEditorDto(
+                        recipeTypeList = _liveRecipeTypes.value ?: listOf(),
+                        validateRecipeUseCase = validateRecipeFlowUseCase,
+                        validateStepUseCase = validateRecipeStepFlowUseCase,
+                        scope = viewModelScope
+                    )
+                recipeMetaDto = metaDto
+                _liveStepDtoList.value = stepDtoList
                 deleteRecipeTempUseCase(DeleteRecipeTempRequest(recipe.recipeId))
             }
             .onFailure {
@@ -271,7 +278,7 @@ internal class RecipeEditorViewModel @Inject constructor(
 
     private fun saveTempRecipe() {
         if (
-            _liveStepModelList.value == null || isSameWithOld() ||
+            _liveStepDtoList.value == null || isSameWithOld() ||
             (_eventRecipeEditor.value?.peekContent() as? RecipeEditorEvent.SaveResult)?.isSuccess == true
         ) {
             return
@@ -280,9 +287,9 @@ internal class RecipeEditorViewModel @Inject constructor(
         _liveTempLoading.value = true
         tempJob?.cancel()
         tempJob = viewModelScope.launch {
-            val recipe = recipeMetaModel.toDomain(
-                _liveStepModelList.value ?: listOf(),
-                liveRecipeTypes.value ?: listOf()
+            val recipe = recipeMetaDto.toDomain(
+                stepDtoList = _liveStepDtoList.value ?: listOf(),
+                recipeTypeList = liveRecipeTypes.value ?: listOf()
             )
             saveRecipeTempUseCase(SaveRecipeTempRequest(recipe))
             _liveTempLoading.value = false
@@ -302,7 +309,7 @@ internal class RecipeEditorViewModel @Inject constructor(
         _liveTempLoading.value = false
         _liveLoading.value = true
         viewModelScope.launch {
-            deleteRecipeTempUseCase(DeleteRecipeTempRequest(recipeMetaModel.recipeId))
+            deleteRecipeTempUseCase(DeleteRecipeTempRequest(recipeMetaDto.recipeId))
             _liveLoading.value = false
             if (finish) {
                 _eventRecipeEditor.value = Event(RecipeEditorEvent.Exit)
@@ -310,17 +317,17 @@ internal class RecipeEditorViewModel @Inject constructor(
         }
     }
 
-    fun startSelectImage(model: RecipeEditorItem) {
-        _liveImgTarget.value = model
+    fun startSelectImage(dto: RecipeEditorDto) {
+        _liveImgTarget.value = dto
     }
 
     fun setImage(uri: String) {
         liveImgTarget.value?.let { model ->
             when (model) {
-                is RecipeEditorItem.RecipeMetaModel ->
-                    model.liveRecipeImgPath.value = uri
-                is RecipeEditorItem.RecipeStepModel ->
-                    model.liveImgPath.value = uri
+                is RecipeEditorDto.RecipeMetaDto ->
+                    model.imgPathFlow.value = uri
+                is RecipeEditorDto.RecipeStepDto ->
+                    model.imgPathFlow.value = uri
             }
             doEdit()
         }
@@ -334,33 +341,33 @@ internal class RecipeEditorViewModel @Inject constructor(
     fun setImageEmpty() {
         liveImgTarget.value?.let { model ->
             when (model) {
-                is RecipeEditorItem.RecipeMetaModel -> model.liveRecipeImgPath.value = null
-                is RecipeEditorItem.RecipeStepModel -> model.liveImgPath.value = null
+                is RecipeEditorDto.RecipeMetaDto -> model.imgPathFlow.value = ""
+                is RecipeEditorDto.RecipeStepDto -> model.imgPathFlow.value = ""
             }
         }
         _liveImgTarget.value = null
     }
 
     private fun addRecipeStep() {
-        _liveStepModelList.value = (_liveStepModelList.value ?: listOf()) +
-                RecipeEditorItem.RecipeStepModel.create(recipeStepValidator)
+        _liveStepDtoList.value = (_liveStepDtoList.value ?: listOf()) +
+                RecipeEditorDto.RecipeStepDto.create(validateRecipeStepFlowUseCase, viewModelScope)
         _eventRecipeEditor.value = Event(
-            RecipeEditorEvent.MoveToPosition((_liveStepModelList.value?.size ?: 0) + 2)
+            RecipeEditorEvent.MoveToPosition((_liveStepDtoList.value?.size ?: 0) + 2)
         )
         doEdit()
     }
 
     fun removeRecipeStep(position: Int) {
-        _liveStepModelList.value?.let { modelList ->
-            _liveStepModelList.value = modelList.subList(0, position - 1) +
+        _liveStepDtoList.value?.let { modelList ->
+            _liveStepDtoList.value = modelList.subList(0, position - 1) +
                     modelList.subList(position, modelList.size)
             doEdit()
         }
     }
 
     fun changeRecipeStepPosition(from: Int, to: Int) {
-        _liveStepModelList.value?.let { modelList ->
-            _liveStepModelList.value = modelList.toMutableList().apply {
+        _liveStepDtoList.value?.let { modelList ->
+            _liveStepDtoList.value = modelList.toMutableList().apply {
                 set(from - 1, set(to - 1, get(from - 1)))
             }
             doEdit()
@@ -369,30 +376,45 @@ internal class RecipeEditorViewModel @Inject constructor(
 
     private fun saveRecipe() {
         _liveRegisterHasPressed.value = true
-        if (isRecipeValid()) {
-            if (isSameWithOld()) {
-                _eventRecipeEditor.value = Event(RecipeEditorEvent.SaveResult(true))
-                return
-            }
-            _liveLoading.value = true
-            viewModelScope.launch {
-                val recipe = recipeMetaModel.toDomain(
-                    _liveStepModelList.value ?: listOf(),
-                    liveRecipeTypes.value ?: listOf()
+        val validation = validateRecipeUseCase(
+            ValidateRecipeRequest(
+                recipeMetaDto.toDomain(
+                    stepDtoList = _liveStepDtoList.value ?: listOf(),
+                    recipeTypeList = _liveRecipeTypes.value ?: listOf()
                 )
+            )
+        )
 
-                saveRecipeUseCase(SaveRecipeRequest(recipe))
-                    .onSuccess {
-                        if (recipe.state == RecipeState.UPLOAD) registerUploadTask(recipe.recipeId)
-                        _eventRecipeEditor.value =
-                            Event(RecipeEditorEvent.SaveResult(true))
-                        deleteTemp(false)
-                    }
-                    .onFailure {
-                        _eventRecipeEditor.value =
-                            Event(RecipeEditorEvent.SaveResult(false))
-                    }
-                _liveLoading.value = false
+        when (validation) {
+            is ValidateRecipeResponse.Valid -> {
+                if (isSameWithOld()) {
+                    _eventRecipeEditor.value = Event(RecipeEditorEvent.SaveResult(true))
+                    return
+                }
+                _liveLoading.value = true
+                viewModelScope.launch {
+                    val recipe = recipeMetaDto.toDomain(
+                        _liveStepDtoList.value ?: listOf(),
+                        liveRecipeTypes.value ?: listOf()
+                    )
+
+                    saveRecipeUseCase(SaveRecipeRequest(recipe))
+                        .onSuccess {
+                            if (recipe.state == RecipeState.UPLOAD) registerUploadTask(recipe.recipeId)
+                            _eventRecipeEditor.value =
+                                Event(RecipeEditorEvent.SaveResult(true))
+                            deleteTemp(false)
+                        }
+                        .onFailure {
+                            _eventRecipeEditor.value =
+                                Event(RecipeEditorEvent.SaveResult(false))
+                        }
+                    _liveLoading.value = false
+                }
+            }
+            is ValidateRecipeResponse.Invalid -> {
+                _eventRecipeEditor.value =
+                    Event(RecipeEditorEvent.MoveToPosition(validation.firstInvalidPosition))
             }
         }
     }
@@ -409,29 +431,5 @@ internal class RecipeEditorViewModel @Inject constructor(
             .addTag(updatedRecipeId)
             .build()
         workManager.enqueue(updateWorkerRequest)
-    }
-
-    private fun isRecipeValid(): Boolean {
-        if (
-            !recipeValidator.validateTitle(recipeMetaModel.liveTitle.value ?: "") ||
-            !recipeValidator.validateStuff(recipeMetaModel.liveStuff.value ?: "")
-        ) {
-            _eventRecipeEditor.value = Event(RecipeEditorEvent.MoveToPosition(0))
-            return false
-        }
-
-        _liveStepModelList.value?.forEachIndexed { i, stepModel ->
-            if (
-                !recipeStepValidator.validateName(stepModel.liveName.value ?: "") ||
-                !recipeStepValidator.validateDescription(stepModel.liveDescription.value ?: "") ||
-                !recipeStepValidator.validateMinutes(stepModel.liveTimerMin.value ?: 0) ||
-                !recipeStepValidator.validateSeconds(stepModel.liveTimerSec.value ?: 0)
-            ) {
-                _eventRecipeEditor.value = Event(RecipeEditorEvent.MoveToPosition(i + 1))
-                return false
-            }
-        }
-
-        return true
     }
 }
