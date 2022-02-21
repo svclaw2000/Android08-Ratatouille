@@ -1,7 +1,11 @@
-## 개요
+## What is this PR?
+- Issue Number:
 
-## 하고자 했던 것
+## Changes
 
-## 변경 사항
 
-## 발생한 이슈
+## Screenshot
+
+
+## Checklist
+
